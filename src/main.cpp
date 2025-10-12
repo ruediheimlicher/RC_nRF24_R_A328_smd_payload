@@ -25,6 +25,15 @@ uint16_t radiocounter = 1;
 
 uint8_t radiostatus = 0;
 
+// ack
+
+// ********************
+// ACK Payload ********
+bool newData = false;
+uint8_t ackData[4] = {31,32,33,34};
+// ********************
+// ********************
+
 
 #define FIRSTTIMEDELAY  0x0FF
 #define RADIOSTARTED    1
@@ -82,6 +91,47 @@ Signal data;
 #define CE_PIN 10   // PB2
 #define CSN_PIN 9  // PB1
 
+void initADC()
+{
+   ADCSRA = (1<<ADEN) | (1<<ADPS2) | (1<<ADPS0);    // Frequenzvorteiler auf 32 setzen und ADC aktivieren 
+ 
+  //ADMUX = derKanal;                      // übergebenen Kanal waehlen
+
+  ADMUX |= (1<<REFS1) | (1<<REFS0); // interne Referenzspannung nutzen 
+  //ADMUX |= (1<<REFS0); // VCC als Referenzspannung nutzen 
+ 
+  /* nach Aktivieren des ADC wird ein "Dummy-Readout" empfohlen, man liest
+     also einen Wert und verwirft diesen, um den ADC "warmlaufen zu lassen" */
+  ADCSRA |= (1<<ADSC);              // eine ADC-Wandlung (Der ADC setzt dieses Bit ja wieder auf 0 nach dem Wandeln)
+  while ( ADCSRA & (1<<ADSC) ) {
+     ;     // auf Abschluss der Wandlung warten 
+  }
+}
+uint16_t readKanal(uint8_t derKanal) //Unsere Funktion zum ADC-Channel aus lesen
+{
+  uint8_t i;
+  uint16_t result = 0;         //Initialisieren wichtig, da lokale Variablen
+                               //nicht automatisch initialisiert werden und
+                               //zufällige Werte haben. Sonst kann Quatsch rauskommen
+   ADMUX &= 0XF0;         //clearing channels
+   ADMUX |= derKanal; 
+  // Eigentliche Messung - Mittelwert aus 4 aufeinanderfolgenden Wandlungen
+  for(i=0;i<4;i++)
+  {
+    ADCSRA |= (1<<ADSC);            // eine Wandlung
+    while ( ADCSRA & (1<<ADSC) ) {
+      ;     // auf Abschluss der Wandlung warten 
+    }
+    result += ADCW;            // Wandlungsergebnisse aufaddieren
+  }
+//  ADCSRA &= ~(1<<ADEN);             // ADC deaktivieren ("Enable-Bit" auf LOW setzen)
+ 
+  result /= 4;                     // Summe durch vier teilen = arithm. Mittelwert
+ 
+  return result;
+}
+
+
 const uint64_t pipeIn = 0xABCDABCD71LL;
 
   // instantiate an object for the nRF24L01 transceiver
@@ -107,12 +157,26 @@ uint8_t initradio(void)
   radio.openReadingPipe(1,pipeIn);
   //radio.setChannel(100);
   radio.setChannel(124);
-  radio.setAutoAck(false);
+
+  // ********************
+  // ACK Payload ********
+  //radio.setAutoAck(false);
+  // ********************
+  // ********************
+
+
+
   //radio.setDataRate(RF24_250KBPS);    // The lowest data rate value for more stable communication  | Daha kararlı iletişim için en düşük veri hızı.
   radio.setDataRate(RF24_2MBPS); // Set the speed of the transmission to the quickest available
   radio.setPALevel(RF24_PA_MAX);                           // Output power is set for maximum |  Çıkış gücü maksimum için ayarlanıyor.
   radio.setPALevel(RF24_PA_MIN); 
   radio.setPALevel(RF24_PA_MAX); 
+
+  // ********************
+  // ACK Payload ********
+  radio.enableDynamicPayloads();
+  radio.enableAckPayload();
+  // ********************
   
   radio.startListening(); 
    if (radio.failureDetected) 
@@ -189,6 +253,13 @@ void recvData()
     radiocounter++;
     radio.read(&data, sizeof(Signal));
     lastRecvTime = millis();                                    // Receive the data | Data alınıyor
+
+    ackData[0] = impulscounter;
+   // ********************
+    // ACK Payload ********
+    radio.writeAckPayload(1, &ackData, sizeof(ackData));
+    // ********************
+    // ********************
   }
 }
 
