@@ -13,7 +13,7 @@ RC_nRF_Receiver A328 SMD
 
 */
 
-#define LOOPLED A3 // PC3
+#define LOOPLED PD6
 
 #define BLINKRATE 0x04FF
 
@@ -322,6 +322,7 @@ void loop()
     }
   } 
   
+  //ackData[2] = data.pitch;
   //data.roll = (impulscounter & 0xFF );//& 0xFF00) >> 8;
 
   // map: 
