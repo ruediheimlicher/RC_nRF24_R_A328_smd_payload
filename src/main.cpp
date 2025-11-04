@@ -7,6 +7,7 @@
 #include "lcd.h"
 #include "expo.h"
 
+#include "MS5611.h"
 
 /*
 RC_nRF_Receiver A328 SMD
@@ -138,6 +139,7 @@ const uint64_t pipeIn = 0xABCDABCD71LL;
   // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN);
 
+MS5611 MS5611(0x77);
 
 void ResetData()
 {
@@ -201,9 +203,59 @@ uint8_t initradio(void)
  
 }
 
-// Baro
+// Baro  
+
+uint16_t pressurearray[16] = {0};
+uint16_t altarray[16] = {0};
+uint8_t pressurecounter = 0;
+uint16_t pressuredelaycounter = 0;
 
 
+float pressure = 0;
+uint16_t pressureint = 0;
+float temperatur = 0;
+double altitude = 0;
+uint32_t altitudeint = 0;
+uint32_t oldpressuremittel = 0;
+uint16_t aktpressure = 0;
+volatile uint16_t aktaltitude = 0;
+uint16_t startpressure = 0;
+uint16_t startaltitude = 0;
+const float seaLevelPressure = 1013.25; 
+
+uint16_t readSensor()
+{
+   MS5611.read();    
+    temperatur = MS5611.getTemperature();
+
+
+    pressure = MS5611.getPressure();
+    pressureint = (uint16_t)(pressure*100) ;
+    
+    pressurearray[(pressurecounter % 8)] = pressureint;
+
+    altitude = MS5611.getAltitude(seaLevelPressure);
+    
+    altitudeint = (uint32_t)(altitude) ;
+ 
+    altarray[(pressurecounter % 8)] = altitudeint;
+    pressurecounter++;
+
+    //oldpressuremittel = pressuremittel;
+
+    uint32_t pressuremittel = 0;
+    uint32_t altmittel = 0;
+    for (uint8_t i=0;i<8;i++)
+    {
+      pressuremittel += pressurearray[i];
+      altmittel += altarray[i];
+    }
+    pressuremittel /= 8 ;
+    altmittel /= 8;
+    aktaltitude = altitudeint ;//& 0xFFFF;
+      
+    return pressuremittel & 0xFFFF;
+}
 
 void setup() 
 {
@@ -235,8 +287,10 @@ void setup()
   ch5.attach(IO0);
   //ch6.attach(IO1);
                                                            
-  ResetData();                                            
-  
+  ResetData();   
+
+  initADC();
+
   if(initradio())
   {
     radiostatus |= (1<<RADIOSTARTED);
@@ -245,8 +299,35 @@ void setup()
 
   ResetData();
   
+  Wire.begin();
+  if (MS5611.begin() == true)
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("MS5611 found: ");
+    lcd_putint12(MS5611.getAddress());
+  }
+  else
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("MS5611 not found: ");
+  }
+   
+   
+  MS5611.setOversampling(OSR_HIGH);
+  _delay_ms(1000);
+  uint32_t initpressure = 0;
+  for (uint8_t i=0;i<16;i++)
+  {
+    startpressure = readSensor();
+  }
+
+  startpressure = initpressure / 16;
+  startaltitude = altitude;
+  lcd_gotoxy(0,2);
+  lcd_putint12(startpressure);
+  startpressure += 10;
   
-}
+} // setup
 
 unsigned long lastRecvTime = 0;
 
@@ -258,7 +339,7 @@ void recvData()
     radio.read(&data, sizeof(Signal));
     lastRecvTime = millis();                                    // Receive the data | Data alınıyor
 
-    ackData[0] = impulscounter;
+    //ackData[0] = impulscounter;
    // ********************
     // ACK Payload ********
     radio.writeAckPayload(1, &ackData, sizeof(ackData));
@@ -269,6 +350,15 @@ void recvData()
 
 void loop() 
 {
+
+   pressuredelaycounter++;
+  if(pressuredelaycounter > 0xFF)
+  {
+    pressuredelaycounter = 0;
+    aktpressure = readSensor();
+   
+  }
+
   loopcounter++;
 
   
@@ -317,6 +407,8 @@ void loop()
   if( radiostatus & (1<<RADIOSTARTED))
   {
 
+    ackData[0] = data.yaw;
+    ackData[1] = data.pitch;
     
     recvData();
     unsigned long now = millis();
