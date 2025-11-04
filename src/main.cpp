@@ -40,12 +40,13 @@ uint8_t ackData[4] = {31,32,33,34};
 uint16_t firsttimecounter = 0;
 
 
-int ch_width_1 = 0;
-int ch_width_2 = 0;
-int ch_width_3 = 0;
-int ch_width_4 = 0;
-int ch_width_5 = 0;
-int ch_width_6 = 0;
+int ch_width_1 = 127;
+int ch_width_2 = 127;
+int ch_width_3 = 127;
+int ch_width_4 = 127;
+int ch_width_5 = 127;
+int ch_width_6 = 127;
+
 
 Servo ch1;
 Servo ch2;
@@ -174,7 +175,7 @@ uint8_t initradio(void)
 
   // ********************
   // ACK Payload ********
-  radio.enableDynamicPayloads();
+  //radio.enableDynamicPayloads();
   radio.enableAckPayload();
   // ********************
   
@@ -199,6 +200,9 @@ uint8_t initradio(void)
 // Start the radio comunication for receiver | Alıcı için sinyal iletişimini başlatır.
  
 }
+
+// Baro
+
 
 
 void setup() 
