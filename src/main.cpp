@@ -15,6 +15,8 @@ RC_nRF_Receiver A328 SMD
 
 #define LOOPLED PD6
 
+#define BATT_PIN   PC3
+
 #define BLINKRATE 0x04FF
 
 uint16_t loopcounter = 0;
@@ -217,11 +219,12 @@ void setup()
   //delay(5);
 	//lcd_puts("Guten Tag\0");
 
-  DDRC |= (1<<PC3);
+  //DDRC |= (1<<PC3);
 
  // DDRB |= (1<<0);
  //Serial.begin(9600);
   pinMode(LOOPLED,OUTPUT);
+  DDRC &= ~(1<<BATT_PIN); // Batt
   //pinMode(2,INPUT); // IRQ
   //pinMode(A0,OUTPUT); // CE
   //pinMode(A1,OUTPUT); // CSN
@@ -235,14 +238,14 @@ void setup()
   ch5.attach(IO0);
   //ch6.attach(IO1);
                                                            
-  ResetData();                                            
+  //ResetData();                                            
   
   if(initradio())
   {
     radiostatus |= (1<<RADIOSTARTED);
   }
   
-
+  initADC();
   ResetData();
   
   
@@ -258,7 +261,7 @@ void recvData()
     radio.read(&data, sizeof(Signal));
     lastRecvTime = millis();                                    // Receive the data | Data alınıyor
 
-    ackData[0] = impulscounter;
+    //ackData[0] = impulscounter;
    // ********************
     // ACK Payload ********
     radio.writeAckPayload(1, &ackData, sizeof(ackData));
@@ -312,11 +315,12 @@ void loop()
     */
 
   }
- 
+  ackData[3] = readKanal(BATT_PIN) >> 2;
 
   if( radiostatus & (1<<RADIOSTARTED))
   {
-
+    ackData[0] = data.yaw;
+    ackData[1] = data.pitch;
     
     recvData();
     unsigned long now = millis();
