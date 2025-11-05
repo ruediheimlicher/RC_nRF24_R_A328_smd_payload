@@ -7,6 +7,7 @@
 #include "lcd.h"
 #include "expo.h"
 
+#include "MS5611.h"
 
 /*
 RC_nRF_Receiver A328 SMD
@@ -15,7 +16,10 @@ RC_nRF_Receiver A328 SMD
 
 #define LOOPLED PD6
 
-#define BLINKRATE 0x04FF
+#define BLINKRATE 0x08FF
+#define BATT_PIN   PC3
+
+#define OSZI_PIN   PD4
 
 uint16_t loopcounter = 0;
 
@@ -34,6 +38,10 @@ uint8_t ackData[4] = {31,32,33,34};
 // ********************
 // ********************
 
+uint16_t pressurearray[16] = {0};
+uint16_t altarray[16] = {0};
+uint8_t pressurecounter = 0;
+uint16_t pressuredelaycounter = 0;
 
 #define FIRSTTIMEDELAY  0x0FF
 #define RADIOSTARTED    1
@@ -132,6 +140,8 @@ uint16_t readKanal(uint8_t derKanal) //Unsere Funktion zum ADC-Channel aus lesen
   return result;
 }
 
+MS5611 ms5611(0x77);
+
 
 const uint64_t pipeIn = 0xABCDABCD71LL;
 
@@ -202,6 +212,51 @@ uint8_t initradio(void)
 }
 
 // Baro
+float pressure = 0;
+uint16_t pressureint = 0;
+float temperatur = 0;
+double altitude = 0;
+uint32_t altitudeint = 0;
+uint32_t oldpressuremittel = 0;
+uint16_t aktpressure = 0;
+volatile uint16_t aktaltitude = 0;
+uint16_t startpressure = 0;
+uint16_t startaltitude = 0;
+const float seaLevelPressure = 1013.25; 
+
+uint16_t readSensor()
+{
+   ms5611.read();    
+    temperatur = ms5611.getTemperature();
+
+
+    pressure = ms5611.getPressure();
+    pressureint = (uint16_t)(pressure*100) ;
+    
+    pressurearray[(pressurecounter % 8)] = pressureint;
+
+    altitude = ms5611.getAltitude(seaLevelPressure);
+    
+    altitudeint = (uint32_t)(altitude) ;
+ 
+    altarray[(pressurecounter % 8)] = altitudeint;
+    pressurecounter++;
+
+    //oldpressuremittel = pressuremittel;
+
+    uint32_t pressuremittel = 0;
+    uint32_t altmittel = 0;
+    for (uint8_t i=0;i<8;i++)
+    {
+      pressuremittel += pressurearray[i];
+      altmittel += altarray[i];
+    }
+    pressuremittel /= 8 ;
+    altmittel /= 8;
+    aktaltitude = altitudeint ;//& 0xFFFF;
+      
+    return pressuremittel & 0xFFFF;
+}
 
 
 
@@ -217,11 +272,14 @@ void setup()
   //delay(5);
 	//lcd_puts("Guten Tag\0");
 
-  DDRC |= (1<<PC3);
 
  // DDRB |= (1<<0);
  //Serial.begin(9600);
   pinMode(LOOPLED,OUTPUT);
+
+   pinMode(OSZI_PIN,OUTPUT);
+
+  DDRC &= ~(1<<BATT_PIN); // Batt
   //pinMode(2,INPUT); // IRQ
   //pinMode(A0,OUTPUT); // CE
   //pinMode(A1,OUTPUT); // CSN
@@ -245,6 +303,35 @@ void setup()
 
   ResetData();
   
+   initADC();
+
+  Wire.begin();
+  if (ms5611.begin() == true)
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("ms5611 found: ");
+    lcd_putint12(ms5611.getAddress());
+  }
+  else
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("ms5611 not found: ");
+  }
+   
+   
+  ms5611.setOversampling(OSR_HIGH);
+  
+  _delay_ms(1000);
+  lcd_clr_line(3);
+
+  for (uint8_t i=0;i<16;i++)
+  {
+    startpressure = readSensor();
+  }
+  startaltitude = altitude;
+  lcd_gotoxy(0,2);
+  lcd_putint12(startpressure);
+  startpressure += 10;
   
 }
 
@@ -272,8 +359,41 @@ void loop()
   loopcounter++;
 
   
+   pressuredelaycounter++;
+  if(pressuredelaycounter > 0x2FF)
+  {
+    pressuredelaycounter = 0;
+    //aktpressure = readSensor();
+   digitalWrite(OSZI_PIN, ! digitalRead(OSZI_PIN));
+  }
+
   if(loopcounter >= BLINKRATE)
   {
+    lcd_gotoxy(5,2);
+    lcd_putint12(temperatur);
+    lcd_putc(' ');
+
+    lcd_gotoxy(0,3);
+    lcd_putint16(pressureint);
+    lcd_putc(' ');
+    uint16_t pint = aktpressure & 0xFF;
+    lcd_putint12(aktpressure & 0xFF);
+    
+    lcd_putc(' ');
+    //uint16_t diff = startpressure - aktpressure ;
+    uint8_t diff = altitude - startaltitude +1;
+    ackData[2] = diff;
+
+    lcd_putint12(diff);
+    //lcd_putc(' ');
+    lcd_gotoxy(10,2);
+    lcd_putint12(altitude);
+    // lcd_putc(' ');
+
+
+    ackData[3] = readKanal(BATT_PIN) >> 2;
+    PORTB ^= (1<<0);
+
     //PORTB ^= (1<<0);
     loopcounter = 0;
     impulscounter++;
@@ -317,7 +437,9 @@ void loop()
   if( radiostatus & (1<<RADIOSTARTED))
   {
 
-    
+    ackData[0] = data.yaw;
+    ackData[1] = data.pitch;
+    //ackData[2] = data.roll;
     recvData();
     unsigned long now = millis();
     if ( now - lastRecvTime > 1000 ) 
