@@ -7,6 +7,7 @@
 #include "lcd.h"
 #include "expo.h"
 
+#include "MS5611.h"
 
 /*
 RC_nRF_Receiver A328 SMD
@@ -35,6 +36,10 @@ bool newData = false;
 uint8_t ackData[4] = {31,32,33,34};
 // ********************
 // ********************
+uint16_t pressurearray[16] = {0};
+uint16_t altarray[16] = {0};
+uint8_t pressurecounter = 0;
+uint16_t pressuredelaycounter = 0;
 
 
 #define FIRSTTIMEDELAY  0x0FF
@@ -140,6 +145,7 @@ const uint64_t pipeIn = 0xABCDABCD71LL;
   // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN);
 
+MS5611 ms5611(0x77);
 
 void ResetData()
 {
@@ -204,7 +210,51 @@ uint8_t initradio(void)
 }
 
 // Baro
+float pressure = 0;
+uint16_t pressureint = 0;
+float temperatur = 0;
+double altitude = 0;
+uint32_t altitudeint = 0;
+uint32_t oldpressuremittel = 0;
+uint16_t aktpressure = 0;
+volatile uint16_t aktaltitude = 0;
+uint16_t startpressure = 0;
+uint16_t startaltitude = 0;
+const float seaLevelPressure = 1013.25; 
 
+uint16_t readSensor()
+{
+   ms5611.read();    
+    temperatur = ms5611.getTemperature();
+
+
+    pressure = ms5611.getPressure();
+    pressureint = (uint16_t)(pressure*100) ;
+    
+    pressurearray[(pressurecounter % 8)] = pressureint;
+
+    altitude = ms5611.getAltitude(seaLevelPressure);
+    
+    altitudeint = (uint32_t)(altitude) ;
+ 
+    altarray[(pressurecounter % 8)] = altitudeint;
+    pressurecounter++;
+
+    //oldpressuremittel = pressuremittel;
+
+    uint32_t pressuremittel = 0;
+    uint32_t altmittel = 0;
+    for (uint8_t i=0;i<8;i++)
+    {
+      pressuremittel += pressurearray[i];
+      altmittel += altarray[i];
+    }
+    pressuremittel /= 8 ;
+    altmittel /= 8;
+    aktaltitude = altitudeint ;//& 0xFFFF;
+      
+    return pressuremittel & 0xFFFF;
+}
 
 
 void setup() 
