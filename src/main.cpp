@@ -225,10 +225,11 @@ const float seaLevelPressure = 1013.25;
 uint16_t readSensor()
 {
    ms5611.read();    
-    temperatur = ms5611.getTemperature();
+   // temperatur = ms5611.getTemperature();
 
 
     pressure = ms5611.getPressure();
+    return (uint16_t)(pressure);
     pressureint = (uint16_t)(pressure*100) ;
     
     pressurearray[(pressurecounter % 8)] = pressureint;
@@ -297,7 +298,22 @@ void setup()
   
   initADC();
   ResetData();
-  
+  Wire.begin();
+  if (ms5611.begin() == true)
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("MS5611 found: ");
+    lcd_putint12(ms5611.getAddress());
+  }
+  else
+  {
+    lcd_gotoxy(0,3);
+    lcd_puts("ms5611 not found: ");
+  }
+   
+   
+  ms5611.setOversampling(OSR_LOW);
+
   
 }
 
@@ -327,7 +343,6 @@ void loop()
   
   if(loopcounter >= BLINKRATE)
   {
-    //PORTB ^= (1<<0);
     loopcounter = 0;
     impulscounter++;
     digitalWrite(LOOPLED, ! digitalRead(LOOPLED));
@@ -347,7 +362,7 @@ void loop()
     lcd_putc(' ');
     lcd_putint(data.roll);
     lcd_putc(' ');
-   lcd_gotoxy(0,2);
+    lcd_gotoxy(0,2);
     lcd_putint(ch_width_2);
     lcd_putc(' ');
     lcd_putint(data.pitch);
@@ -364,14 +379,17 @@ void loop()
     lcd_putint(ch_width_6);
     */
 
-  }
+  
   ackData[3] = readKanal(BATT_PIN) >> 2;
 
+   aktpressure = readSensor();
+   ackData[2] = (aktpressure & 0xFF);
+  }
   if( radiostatus & (1<<RADIOSTARTED))
   {
     ackData[0] = data.yaw;
     ackData[1] = data.pitch;
-    
+   
     recvData();
     unsigned long now = millis();
     if ( now - lastRecvTime > 1000 ) 
