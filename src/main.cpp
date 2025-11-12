@@ -7,6 +7,8 @@
 #include "lcd.h"
 #include "expo.h"
 
+#include "defines.h"
+
 #include "MS5611.h"
 
 /*
@@ -14,11 +16,8 @@ RC_nRF_Receiver A328 SMD
 
 */
 
-#define LOOPLED PD6
 
-#define BATT_PIN   PC3
 
-#define BLINKRATE 0x04FF
 
 uint16_t loopcounter = 0;
 
@@ -42,8 +41,8 @@ uint8_t pressurecounter = 0;
 uint16_t pressuredelaycounter = 0;
 
 
-#define FIRSTTIMEDELAY  0x0FF
-#define RADIOSTARTED    1
+
+
 uint16_t firsttimecounter = 0;
 
 
@@ -76,28 +75,12 @@ byte aux2;
 
 Signal data;
 
-#define MITTE 170
-
-// SMD
-#define S0  PD0     // PD0 // YAW
-#define S1  PD1     // PD1 // PITCH
-#define S2  PD2     // PD2 // ROLL
-#define S3  PD3     // PD3 // THROTTLE
-#define IO0 PD4     // PD4 // AUX
-//#define IO1 A0    // PD1
-
-/*
-#define S0  A2    // PB2 // YAW
-#define S1  A3     // PB1 // PITCH
-#define S2  10    // PC2 // ROLL
-#define S3  9    // PC3 // THROTTLE
-#define IO0 3     // PD3
-#define IO1 A0    // PD1
-*/
 
 
-#define CE_PIN 10   // PB2
-#define CSN_PIN 9  // PB1
+
+
+
+
 
 void initADC()
 {
@@ -212,8 +195,10 @@ uint8_t initradio(void)
 // Baro
 float pressure = 0;
 uint16_t pressureint = 0;
+float pressuremittel = 0;
 float temperatur = 0;
-double altitude = 0;
+float altitude = 0;
+float altitudemittel = 0;
 uint32_t altitudeint = 0;
 uint32_t oldpressuremittel = 0;
 uint16_t aktpressure = 0;
@@ -221,40 +206,37 @@ volatile uint16_t aktaltitude = 0;
 uint16_t startpressure = 0;
 uint16_t startaltitude = 0;
 const float seaLevelPressure = 1013.25; 
+float faktor = 0.02;
 
 uint16_t readSensor()
 {
    ms5611.read();    
-   // temperatur = ms5611.getTemperature();
+   temperatur = ms5611.getTemperature();
 
-
-    pressure = ms5611.getPressure();
-    return (uint16_t)(pressure);
-    pressureint = (uint16_t)(pressure*100) ;
-    
-    pressurearray[(pressurecounter % 8)] = pressureint;
-
-    altitude = ms5611.getAltitude(seaLevelPressure);
-    
-    altitudeint = (uint32_t)(altitude) ;
- 
-    altarray[(pressurecounter % 8)] = altitudeint;
-    pressurecounter++;
-
-    //oldpressuremittel = pressuremittel;
-
-    uint32_t pressuremittel = 0;
-    uint32_t altmittel = 0;
-    for (uint8_t i=0;i<8;i++)
+  pressure = 100 * ms5611.getPressure(); // 2 Kommastellen    return (uint16_t)(pressure);
+  // Umwandlung zu Int
+    if (pressuremittel == 0)
     {
-      pressuremittel += pressurearray[i];
-      altmittel += altarray[i];
+      pressuremittel = pressure;
     }
-    pressuremittel /= 8 ;
-    altmittel /= 8;
-    aktaltitude = altitudeint ;//& 0xFFFF;
-      
-    return pressuremittel & 0xFFFF;
+    else
+    {
+      pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
+    }  
+
+    altitude = 10 * ms5611.getAltitude(seaLevelPressure);
+    
+    if (altitudemittel == 0)
+    {
+      altitudemittel = altitude;
+    }
+    else
+    {
+      altitudemittel = altitudemittel + faktor * (altitude - altitudemittel);
+    }
+   altitudeint = (uint16_t)(altitudemittel) ;
+   
+    return pressuremittel;
 }
 
 
@@ -312,8 +294,8 @@ void setup()
   }
    
    
-  ms5611.setOversampling(OSR_LOW);
-
+ // ms5611.setOversampling(OSR_HIGH);
+_delay_ms(20);
   
 }
 
@@ -338,6 +320,19 @@ void recvData()
 
 void loop() 
 {
+
+  pressuredelaycounter++;
+   if(pressuredelaycounter > 0x1FF)
+   {
+      pressuredelaycounter = 0;
+      //OSZIALO;
+      aktpressure = readSensor();
+      //OSZIAHI;
+      ackData[2] = aktpressure & 0x8F;
+      ackData[1] = (altitudeint-100) & 0xFF ;
+      //ackData[1] = pressurecounter++;
+   }
+
   loopcounter++;
 
   
@@ -346,6 +341,21 @@ void loop()
     loopcounter = 0;
     impulscounter++;
     digitalWrite(LOOPLED, ! digitalRead(LOOPLED));
+
+    // BATT
+    uint16_t batt = readKanal(BATT_PIN);// BATT 8.4V: 998    6.4V: 748  5.0: 700
+
+    /*
+    map() begrenzt nicht.
+    Werte unter in_min → Ergebnis unter out_min.
+    Speicherung in byte → Unterlauf → scheinbar 0–255.
+    */
+
+    batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
+    ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+
+
+
     //digitalWrite(A0, ! digitalRead(A0))
     //Serial.println(data.yaw);
    
@@ -380,15 +390,13 @@ void loop()
     */
 
   
-  ackData[3] = readKanal(BATT_PIN) >> 2;
 
-   aktpressure = readSensor();
-   ackData[2] = (aktpressure & 0xFF);
+   
   }
   if( radiostatus & (1<<RADIOSTARTED))
   {
     ackData[0] = data.yaw;
-    ackData[1] = data.pitch;
+    //ackData[1] = data.pitch;
    
     recvData();
     unsigned long now = millis();
