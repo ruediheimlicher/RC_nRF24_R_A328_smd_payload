@@ -27,6 +27,29 @@ uint16_t radiocounter = 1;
 
 uint8_t radiostatus = 0;
 
+// MS5611
+float temperature = 0;
+const float seaLevelPressure = 1013.25;
+float pressuremittel = 0;
+float pressurediff = 0;
+float startpressuremittel = 0;
+float faktor = 0.02;
+float pressure = 0;
+uint16_t pressureint = 0;
+
+float altitude = 0;
+float startaltitude = 0;
+float altitudemittel = 0;
+
+uint16_t altitudeint = 0;
+uint32_t oldpressuremittel = 0;
+uint16_t aktpressure = 0;
+volatile uint16_t aktaltitude = 0;
+float startpressure = 0;
+uint16_t startpressureint = 0;
+const float mittelfaktor = 0.1;
+
+
 // ack
 
 // ********************
@@ -193,25 +216,12 @@ uint8_t initradio(void)
 }
 
 // Baro
-float pressure = 0;
-uint16_t pressureint = 0;
-float pressuremittel = 0;
-float temperatur = 0;
-float altitude = 0;
-float altitudemittel = 0;
-uint32_t altitudeint = 0;
-uint32_t oldpressuremittel = 0;
-uint16_t aktpressure = 0;
-volatile uint16_t aktaltitude = 0;
-uint16_t startpressure = 0;
-uint16_t startaltitude = 0;
-const float seaLevelPressure = 1013.25; 
-float faktor = 0.02;
+
 
 uint16_t readSensor()
 {
    ms5611.read();    
-   temperatur = ms5611.getTemperature();
+   temperature = ms5611.getTemperature();
 
   pressure = 100 * ms5611.getPressure(); // 2 Kommastellen    return (uint16_t)(pressure);
   // Umwandlung zu Int
