@@ -230,7 +230,7 @@ uint16_t readSensor()
       temperaturmittel = temperaturmittel + faktor * (temperature - temperaturmittel);
     }
 
-  pressure = 100 * ms5611.getPressure(); // 2 Kommastellen    return (uint16_t)(pressure);
+  pressure = 10 * ms5611.getPressure(); // 1 Kommastellen    return (uint16_t)(pressure);
   // Umwandlung zu Int
     if (pressuremittel == 0)
     {
@@ -240,19 +240,7 @@ uint16_t readSensor()
     {
       pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
     }  
-    /*
-    altitude = 10 * ms5611.getAltitude(seaLevelPressure);
     
-    if (altitudemittel == 0)
-    {
-      altitudemittel = altitude;
-    }
-    else
-    {
-      altitudemittel = altitudemittel + faktor * (altitude - altitudemittel);
-    }
-   altitudeint = (uint16_t)(altitudemittel) ;
-   */
    
     return pressuremittel;
 }
@@ -270,17 +258,18 @@ void setup()
   //delay(5);
 	//lcd_puts("Guten Tag\0");
 
-  pinMode(LOOPLED,OUTPUT);
-  DDRC &= ~(1<<BATT_PIN); // Batt
+  //pinMode(LOOPLED,OUTPUT);
+  LOOPLED_DDR |= (1<<LOOPLED);
+
+
+  BATT_DDR &= ~(1<<BATT_PIN); // Batt
  
-  DDRC |= (1<<PC5); // Buzzer // SCL
+  //DDRC |= (1<<PC5); // Buzzer // SCL
    
-   DDRC |= (1<<PC0);
-   DDRC |= (1<<PC1);
-   DDRC |= (1<<PC2);
+ 
    
-   DDRD |= (1<<PD3); // OSZIA
-   PORTD |= (1<<PD3); // OSZIA
+   OSZIA_DDR |= (1<<OSZIA_PIN); // OSZIA
+   OSZIA_PORT |= (1<<OSZIA_PIN); // OSZIA HI
 
   
   // Set the pins for each PWM signal | Her bir PWM sinyal için pinler belirleniyor.
@@ -299,23 +288,23 @@ void setup()
   }
   
   initADC();
-  ResetData();
+ // ResetData();
   Wire.begin();
   if (ms5611.begin() == true)
   {
-    lcd_gotoxy(0,3);
-    lcd_puts("MS5611 found: ");
-    lcd_putint12(ms5611.getAddress());
+    //lcd_gotoxy(0,3);
+    //lcd_puts("MS5611 found: ");
+    //lcd_putint12(ms5611.getAddress());
   }
   else
   {
-    lcd_gotoxy(0,3);
-    lcd_puts("ms5611 not found: ");
+    //lcd_gotoxy(0,3);
+    //lcd_puts("ms5611 not found: ");
   }
    
   ms5611.reset(0);
   ms5611.setOversampling(OSR_HIGH);
-_delay_ms(20);
+_delay_ms(100);
   
 }
 
@@ -346,7 +335,7 @@ void loop()
    {
       pressuredelaycounter = 0;
       OSZIALO;
-      //float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
+      float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
       OSZIAHI;
       temperature_int = uint8_t(temperaturmittel * 5); // 3 Stellen <255
       ackData[0] = temperature_int;
@@ -354,6 +343,8 @@ void loop()
       pressureint = (pressuremittel); // 
       ackData[1] = (pressureint & 0xFF00)>>8;
       ackData[2] = (pressureint & 0x00FF);
+      //ackData[1] = 17;
+      //ackData[2] = 33;
    }
 
   loopcounter++;
@@ -377,7 +368,7 @@ void loop()
     batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
     
     ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
-
+    ackData[3] = 77;
 
 
     //digitalWrite(A0, ! digitalRead(A0))
@@ -451,7 +442,7 @@ void loop()
   ch2.writeMicroseconds(ch_width_2);
   ch3.writeMicroseconds(ch_width_3);
   ch4.writeMicroseconds(ch_width_4);
-  ch5.writeMicroseconds(ch_width_5);
+  //ch5.writeMicroseconds(ch_width_5);
   //ch6.writeMicroseconds(ch_width_6); 
 
 
