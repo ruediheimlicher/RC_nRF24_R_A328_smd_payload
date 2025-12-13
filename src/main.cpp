@@ -12,7 +12,7 @@
 #include "MS5611.h"
 
 /*
-RC_nRF_Receiver A328 SMD
+RC_nRF_Receiver A328 payload SMD
 
 */
 
@@ -29,6 +29,8 @@ uint8_t radiostatus = 0;
 
 // MS5611
 float temperature = 0;
+float temperaturmittel = 0;
+ uint16_t temperature_int = 0;
 const float seaLevelPressure = 1013.25;
 float pressuremittel = 0;
 float pressurediff = 0;
@@ -62,8 +64,6 @@ uint16_t pressurearray[16] = {0};
 uint16_t altarray[16] = {0};
 uint8_t pressurecounter = 0;
 uint16_t pressuredelaycounter = 0;
-
-
 
 
 uint16_t firsttimecounter = 0;
@@ -109,7 +109,6 @@ void initADC()
 {
    ADCSRA = (1<<ADEN) | (1<<ADPS2) | (1<<ADPS0);    // Frequenzvorteiler auf 32 setzen und ADC aktivieren 
  
-  //ADMUX = derKanal;                      // übergebenen Kanal waehlen
 
   ADMUX |= (1<<REFS1) | (1<<REFS0); // interne Referenzspannung nutzen 
   //ADMUX |= (1<<REFS0); // VCC als Referenzspannung nutzen 
@@ -121,6 +120,7 @@ void initADC()
      ;     // auf Abschluss der Wandlung warten 
   }
 }
+
 uint16_t readKanal(uint8_t derKanal) //Unsere Funktion zum ADC-Channel aus lesen
 {
   uint8_t i;
@@ -159,7 +159,7 @@ void ResetData()
 data.throttle = 0;   // Define the initial value of each data input. 
 data.roll = MITTE;
 data.pitch = MITTE;
-data.yaw = MITTE+30;
+data.yaw = MITTE+10;
 data.aux1 = 0;                                              
 data.aux2 = 0;
 resetcounter++;                                               
@@ -189,7 +189,6 @@ uint8_t initradio(void)
 
   // ********************
   // ACK Payload ********
-  //radio.enableDynamicPayloads();
   radio.enableAckPayload();
   // ********************
   
@@ -222,6 +221,14 @@ uint16_t readSensor()
 {
    ms5611.read();    
    temperature = ms5611.getTemperature();
+   if(temperature == 0)
+    {
+      temperaturmittel = temperature;
+    }
+    else
+    {
+      temperaturmittel = temperaturmittel + faktor * (temperature - temperaturmittel);
+    }
 
   pressure = 100 * ms5611.getPressure(); // 2 Kommastellen    return (uint16_t)(pressure);
   // Umwandlung zu Int
@@ -233,7 +240,7 @@ uint16_t readSensor()
     {
       pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
     }  
-
+    /*
     altitude = 10 * ms5611.getAltitude(seaLevelPressure);
     
     if (altitudemittel == 0)
@@ -245,6 +252,7 @@ uint16_t readSensor()
       altitudemittel = altitudemittel + faktor * (altitude - altitudemittel);
     }
    altitudeint = (uint16_t)(altitudemittel) ;
+   */
    
     return pressuremittel;
 }
@@ -262,15 +270,17 @@ void setup()
   //delay(5);
 	//lcd_puts("Guten Tag\0");
 
-  //DDRC |= (1<<PC3);
-
- // DDRB |= (1<<0);
- //Serial.begin(9600);
   pinMode(LOOPLED,OUTPUT);
   DDRC &= ~(1<<BATT_PIN); // Batt
-  //pinMode(2,INPUT); // IRQ
-  //pinMode(A0,OUTPUT); // CE
-  //pinMode(A1,OUTPUT); // CSN
+ 
+  DDRC |= (1<<PC5); // Buzzer // SCL
+   
+   DDRC |= (1<<PC0);
+   DDRC |= (1<<PC1);
+   DDRC |= (1<<PC2);
+   
+   DDRD |= (1<<PD3); // OSZIA
+   PORTD |= (1<<PD3); // OSZIA
 
   
   // Set the pins for each PWM signal | Her bir PWM sinyal için pinler belirleniyor.
@@ -278,10 +288,10 @@ void setup()
   ch2.attach(S1); // PITCH
   ch3.attach(S2); // ROLL
   ch4.attach(S3); // THROTTLE
-  ch5.attach(IO0);
+  //ch5.attach(IO0);
   //ch6.attach(IO1);
                                                            
-  //ResetData();                                            
+  ResetData();                                            
   
   if(initradio())
   {
@@ -303,8 +313,8 @@ void setup()
     lcd_puts("ms5611 not found: ");
   }
    
-   
- // ms5611.setOversampling(OSR_HIGH);
+  ms5611.reset(0);
+  ms5611.setOversampling(OSR_HIGH);
 _delay_ms(20);
   
 }
@@ -332,15 +342,18 @@ void loop()
 {
 
   pressuredelaycounter++;
-   if(pressuredelaycounter > 0x1FF)
+   if(pressuredelaycounter > 0xFF)
    {
       pressuredelaycounter = 0;
-      //OSZIALO;
-      aktpressure = readSensor();
-      //OSZIAHI;
-      ackData[2] = aktpressure & 0x8F;
-      ackData[1] = (altitudeint-100) & 0xFF ;
-      //ackData[1] = pressurecounter++;
+      OSZIALO;
+      //float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
+      OSZIAHI;
+      temperature_int = uint8_t(temperaturmittel * 5); // 3 Stellen <255
+      ackData[0] = temperature_int;
+
+      pressureint = (pressuremittel); // 
+      ackData[1] = (pressureint & 0xFF00)>>8;
+      ackData[2] = (pressureint & 0x00FF);
    }
 
   loopcounter++;
@@ -362,6 +375,7 @@ void loop()
     */
 
     batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
+    
     ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
 
 
@@ -405,7 +419,7 @@ void loop()
   }
   if( radiostatus & (1<<RADIOSTARTED))
   {
-    ackData[0] = data.yaw;
+    //ackData[0] = data.yaw;
     //ackData[1] = data.pitch;
    
     recvData();

@@ -10,7 +10,7 @@
 
 
 #ifndef DEFINES_h
-#define DEFIàNES_h
+#define DEFINES_h
 
 #define TEST    1
 #define R_SMD 0
