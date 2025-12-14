@@ -356,9 +356,11 @@ void loop()
     Speicherung in byte → Unterlauf → scheinbar 0–255.
     */
 
-    batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
-    //ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+    //batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
 
+    ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+
+    
 
 
     //digitalWrite(A0, ! digitalRead(A0))
