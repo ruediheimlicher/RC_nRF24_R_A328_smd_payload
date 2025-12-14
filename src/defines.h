@@ -17,9 +17,13 @@
 #define  R_DIL 1
 #define BOARD 1
 
-#define LOOPLED PB6
+#define LOOPLED_DDR   DDRD
+#define LOOPLED_PORT  PORTD
+#define LOOPLED       PD6
 
-#define BATT_PIN   PC3
+#define BATT_DDR      DDRC
+#define BATT_PORT     PORTC
+#define BATT_PIN      PC3
 
 #define BLINKRATE 0x04FF
 

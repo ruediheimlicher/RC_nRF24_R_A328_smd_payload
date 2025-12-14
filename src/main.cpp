@@ -40,6 +40,11 @@ uint16_t altarray[16] = {0};
 uint8_t pressurecounter = 0;
 uint16_t pressuredelaycounter = 0;
 
+float temperature = 0;
+float temperaturmittel = 0;
+ uint16_t temperature_int = 0;
+float pressurediff = 0;
+float startpressuremittel = 0;
 
 
 
@@ -206,15 +211,25 @@ volatile uint16_t aktaltitude = 0;
 uint16_t startpressure = 0;
 uint16_t startaltitude = 0;
 const float seaLevelPressure = 1013.25; 
-float faktor = 0.02;
+float faktor = 0.2;
 
 uint16_t readSensor()
 {
-   ms5611.read();    
-   temperatur = ms5611.getTemperature();
-
-  pressure = 100 * ms5611.getPressure(); // 2 Kommastellen    return (uint16_t)(pressure);
-  // Umwandlung zu Int
+  ms5611.read();    
+   temperature = ms5611.getTemperature();
+   
+    if(temperature == 0)
+    {
+      temperaturmittel = temperature;
+    }
+    else
+    {
+      temperaturmittel = temperaturmittel + faktor * (temperature - temperaturmittel);
+    }
+   
+   pressure = ms5611.getPressure() * 10; // 
+   
+   // Filter
     if (pressuremittel == 0)
     {
       pressuremittel = pressure;
@@ -222,21 +237,9 @@ uint16_t readSensor()
     else
     {
       pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
-    }  
+    }
 
-    altitude = 10 * ms5611.getAltitude(seaLevelPressure);
-    
-    if (altitudemittel == 0)
-    {
-      altitudemittel = altitude;
-    }
-    else
-    {
-      altitudemittel = altitudemittel + faktor * (altitude - altitudemittel);
-    }
-   altitudeint = (uint16_t)(altitudemittel) ;
-   
-    return pressuremittel;
+   return pressuremittel ;
 }
 
 
@@ -252,12 +255,10 @@ void setup()
   //delay(5);
 	//lcd_puts("Guten Tag\0");
 
-  //DDRC |= (1<<PC3);
+  
+  LOOPLED_DDR |= (1<< LOOPLED);
 
- // DDRB |= (1<<0);
- //Serial.begin(9600);
-  pinMode(LOOPLED,OUTPUT);
-  DDRC &= ~(1<<BATT_PIN); // Batt
+  BATT_DDR &= ~(1<<BATT_PIN); // Batt
   //pinMode(2,INPUT); // IRQ
   //pinMode(A0,OUTPUT); // CE
   //pinMode(A1,OUTPUT); // CSN
@@ -340,8 +341,9 @@ void loop()
   {
     loopcounter = 0;
     impulscounter++;
-    digitalWrite(LOOPLED, ! digitalRead(LOOPLED));
 
+    //digitalWrite(LOOPLED, ! digitalRead(LOOPLED));
+    LOOPLED_PORT ^= (1<<LOOPLED);
     // BATT
     uint16_t batt = readKanal(BATT_PIN);// BATT 8.4V: 998    6.4V: 748  5.0: 700
 
@@ -352,7 +354,7 @@ void loop()
     */
 
     batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
-    ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+    //ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
 
 
 
@@ -395,7 +397,7 @@ void loop()
   }
   if( radiostatus & (1<<RADIOSTARTED))
   {
-    ackData[0] = data.yaw;
+    //ackData[0] = data.yaw;
     //ackData[1] = data.pitch;
    
     recvData();
