@@ -329,9 +329,12 @@ void loop()
       //OSZIALO;
       aktpressure = readSensor();
       //OSZIAHI;
-      ackData[2] = aktpressure & 0x8F;
-      ackData[1] = (altitudeint-100) & 0xFF ;
-      //ackData[1] = pressurecounter++;
+      temperature_int = uint8_t(temperaturmittel * 5); // 3 Stellen <255
+      ackData[0] = temperature_int;
+
+      pressureint = (pressuremittel); // 
+      ackData[1] = (pressureint & 0xFF00)>>8;
+      ackData[2] = (pressureint & 0x00FF);
    }
 
   loopcounter++;
