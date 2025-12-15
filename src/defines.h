@@ -12,10 +12,10 @@
 #ifndef DEFINES_h
 #define DEFIàNES_h
 
-#define TEST    1
-#define R_SMD 0
-#define  R_DIL 1
-#define BOARD 1
+#define TEST    0
+#define R_SMD         0
+#define  R_DIL        1
+#define BOARD         R_SMD
 
 #define LOOPLED_DDR   DDRD
 #define LOOPLED_PORT  PORTD
@@ -24,6 +24,7 @@
 #define BATT_DDR      DDRC
 #define BATT_PORT     PORTC
 #define BATT_PIN      PC3
+
 
 #define BLINKRATE 0x04FF
 
@@ -41,10 +42,12 @@
 #define IO0 PD4     // PD4 // AUX
 
 
-#define OSZIA  PD3
+#define OSZIA_DDR      DDRC
+#define OSZIA_PORT     PORTC
+#define OSZIA_PIN     PD3
 
-#define OSZIAHI PORTD |= (1<<PD3)
-#define OSZIALO PORTD &= ~(1<<PD3)
+#define OSZIAHI OSZI_PORT |= (1<<OSZIA_PIN)
+#define OSZIALO OSZI_PORT &= ~(1<<OSZIA_PIN)
 
 
 #define CE_PIN 10   // PB2
