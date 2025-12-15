@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <SPI.h>
-//#include <nRF24L01.h>
 #include <RF24.h>
 #include <Servo.h>
 
@@ -26,6 +25,17 @@ uint16_t resetcounter = 0;
 uint16_t radiocounter = 1;
 
 uint8_t radiostatus = 0;
+// Baro
+float pressure = 0;
+uint16_t pressureint = 0;
+float pressuremittel = 0;
+uint16_t aktpressure = 0;
+const float seaLevelPressure = 1013.25; 
+float faktor = 0.1;
+uint16_t pressuredelaycounter = 0;
+float temperature = 0;
+float temperaturmittel = 0;
+ uint16_t temperature_int = 0;
 
 // ack
 
@@ -35,16 +45,7 @@ bool newData = false;
 uint8_t ackData[4] = {31,32,33,34};
 // ********************
 // ********************
-uint16_t pressurearray[16] = {0};
-uint16_t altarray[16] = {0};
-uint8_t pressurecounter = 0;
-uint16_t pressuredelaycounter = 0;
 
-float temperature = 0;
-float temperaturmittel = 0;
- uint16_t temperature_int = 0;
-float pressurediff = 0;
-float startpressuremittel = 0;
 
 
 
@@ -69,21 +70,16 @@ Servo ch5;
 struct Signal 
 {
 
-byte throttle;
-byte pitch;  
-byte roll;
-byte yaw;
-byte aux1;
-byte aux2;
-    
+    byte throttle;
+    byte pitch;  
+    byte roll;
+    byte yaw;
+    byte aux1;
+    byte aux2;
+        
 };
 
 Signal data;
-
-
-
-
-
 
 
 
@@ -91,15 +87,14 @@ void initADC()
 {
    ADCSRA = (1<<ADEN) | (1<<ADPS2) | (1<<ADPS0);    // Frequenzvorteiler auf 32 setzen und ADC aktivieren 
  
-  //ADMUX = derKanal;                      // übergebenen Kanal waehlen
 
   ADMUX |= (1<<REFS1) | (1<<REFS0); // interne Referenzspannung nutzen 
-  //ADMUX |= (1<<REFS0); // VCC als Referenzspannung nutzen 
  
   /* nach Aktivieren des ADC wird ein "Dummy-Readout" empfohlen, man liest
      also einen Wert und verwirft diesen, um den ADC "warmlaufen zu lassen" */
   ADCSRA |= (1<<ADSC);              // eine ADC-Wandlung (Der ADC setzt dieses Bit ja wieder auf 0 nach dem Wandeln)
-  while ( ADCSRA & (1<<ADSC) ) {
+  while ( ADCSRA & (1<<ADSC) ) 
+  {
      ;     // auf Abschluss der Wandlung warten 
   }
 }
@@ -141,7 +136,7 @@ void ResetData()
 data.throttle = 0;   // Define the initial value of each data input. 
 data.roll = MITTE;
 data.pitch = MITTE;
-data.yaw = MITTE+30;
+data.yaw = MITTE+10;
 data.aux1 = 0;                                              
 data.aux2 = 0;
 resetcounter++;                                               
@@ -160,8 +155,6 @@ uint8_t initradio(void)
   //radio.setAutoAck(false);
   // ********************
   // ********************
-
-
 
   //radio.setDataRate(RF24_250KBPS);    // The lowest data rate value for more stable communication  | Daha kararlı iletişim için en düşük veri hızı.
   radio.setDataRate(RF24_2MBPS); // Set the speed of the transmission to the quickest available
@@ -197,20 +190,6 @@ uint8_t initradio(void)
  
 }
 
-// Baro
-float pressure = 0;
-uint16_t pressureint = 0;
-float pressuremittel = 0;
-float altitude = 0;
-float altitudemittel = 0;
-uint32_t altitudeint = 0;
-uint32_t oldpressuremittel = 0;
-uint16_t aktpressure = 0;
-volatile uint16_t aktaltitude = 0;
-uint16_t startpressure = 0;
-uint16_t startaltitude = 0;
-const float seaLevelPressure = 1013.25; 
-float faktor = 0.2;
 
 uint16_t readSensor()
 {
@@ -258,9 +237,6 @@ void setup()
   LOOPLED_DDR |= (1<< LOOPLED);
 
   BATT_DDR &= ~(1<<BATT_PIN); // Batt
-  //pinMode(2,INPUT); // IRQ
-  //pinMode(A0,OUTPUT); // CE
-  //pinMode(A1,OUTPUT); // CSN
 
   
   // Set the pins for each PWM signal | Her bir PWM sinyal için pinler belirleniyor.
@@ -435,7 +411,5 @@ void loop()
   ch4.writeMicroseconds(ch_width_4);
   ch5.writeMicroseconds(ch_width_5);
   //ch6.writeMicroseconds(ch_width_6); 
-
-
 }
 
