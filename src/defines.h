@@ -21,10 +21,18 @@
 #define LOOPLED_PORT  PORTD
 #define LOOPLED       PD6
 
+#define TEST_DDR      DDRD
+#define TEST_PORT     PORTD
+#define TEST_PIN      PD2
+
 #define BATT_DDR      DDRC
 #define BATT_PORT     PORTC
 #define BATT_PIN      PC3
 
+
+#define BUZZER_DDR    DDRD
+#define BUZZER_PORT   PORTD
+#define BUZZER_PIN    PD1
 
 #define BLINKRATE 0x04FF
 
@@ -42,12 +50,12 @@
 #define IO0 PD4     // PD4 // AUX
 
 
-#define OSZIA_DDR      DDRC
-#define OSZIA_PORT     PORTC
-#define OSZIA_PIN     PD3
+#define OSZIA_DDR      DDRD
+#define OSZIA_PORT     PORTD
+#define OSZIA_PIN     PD4
 
-#define OSZIAHI OSZI_PORT |= (1<<OSZIA_PIN)
-#define OSZIALO OSZI_PORT &= ~(1<<OSZIA_PIN)
+#define OSZIAHI OSZIA_PORT |= (1<<OSZIA_PIN)
+#define OSZIALO OSZIA_PORT &= ~(1<<OSZIA_PIN)
 
 
 #define CE_PIN 10   // PB2
