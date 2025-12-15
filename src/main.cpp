@@ -201,7 +201,6 @@ uint8_t initradio(void)
 float pressure = 0;
 uint16_t pressureint = 0;
 float pressuremittel = 0;
-float temperatur = 0;
 float altitude = 0;
 float altitudemittel = 0;
 uint32_t altitudeint = 0;
