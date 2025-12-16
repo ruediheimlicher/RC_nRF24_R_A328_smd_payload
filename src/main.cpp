@@ -193,7 +193,9 @@ uint8_t initradio(void)
 
 uint16_t readSensor()
 {
-  ms5611.read();    
+  ms5611.read();  
+
+   cli();  
    temperature = ms5611.getTemperature();
    
     if(temperature == 0)
@@ -216,7 +218,7 @@ uint16_t readSensor()
     {
       pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
     }
-
+   sei();
    return pressuremittel ;
 }
 
@@ -244,7 +246,7 @@ void setup()
   ch2.attach(S1); // PITCH
   ch3.attach(S2); // ROLL
   ch4.attach(S3); // THROTTLE
-  ch5.attach(IO0);
+  //ch5.attach(IO0);
   //ch6.attach(IO1);
                                                            
   //ResetData();                                            
@@ -270,8 +272,8 @@ void setup()
   }
    
    
- // ms5611.setOversampling(OSR_HIGH);
-_delay_ms(20);
+   ms5611.setOversampling(OSR_STANDARD);
+   _delay_ms(20);
   
 }
 
@@ -291,6 +293,19 @@ void recvData()
     radio.writeAckPayload(1, &ackData, sizeof(ackData));
     // ********************
     // ********************
+   if(radiocounter % 4 == 0)
+      {
+         //OSZIALO;
+       //   float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
+         //OSZIAHI;
+         temperature_int = uint8_t(temperaturmittel *5); // 3 Stellen <255
+         ackData[0] = temperature_int;
+
+         pressureint = (pressuremittel); // 
+         ackData[1] = (pressureint & 0xFF00)>>8;
+         ackData[2] = (pressureint & 0x00FF);
+      }
+
   }
 }
 
@@ -301,6 +316,7 @@ void loop()
    if(pressuredelaycounter > 0x1FF)
    {
       pressuredelaycounter = 0;
+      /*
       //OSZIALO;
       aktpressure = readSensor();
       //OSZIAHI;
@@ -310,6 +326,7 @@ void loop()
       pressureint = (pressuremittel); // 
       ackData[1] = (pressureint & 0xFF00)>>8;
       ackData[2] = (pressureint & 0x00FF);
+      */
    }
 
   loopcounter++;

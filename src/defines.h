@@ -38,10 +38,10 @@
 #define S1  PD1     // PD1 // PITCH
 #define S2  PD2     // PD2 // ROLL
 #define S3  PD3     // PD3 // THROTTLE
-#define IO0 PD4     // PD4 // AUX
+//#define IO0 PD4     // PD4 // AUX
 
 
-#define OSZIA  PD3
+#define OSZIA  PD4
 
 #define OSZIAHI PORTD |= (1<<PD3)
 #define OSZIALO PORTD &= ~(1<<PD3)
