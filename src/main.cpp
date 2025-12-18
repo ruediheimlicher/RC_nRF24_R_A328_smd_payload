@@ -42,7 +42,7 @@ float temperaturmittel = 0;
 // ********************
 // ACK Payload ********
 bool newData = false;
-uint8_t ackData[4] = {31,32,33,34};
+uint8_t ackData[4] = {0,0,0,0};
 // ********************
 // ********************
 
@@ -195,7 +195,7 @@ uint16_t readSensor()
 {
   ms5611.read();  
 
-   cli();  
+   //cli();  
    temperature = ms5611.getTemperature();
    
     if(temperature == 0)
@@ -218,7 +218,7 @@ uint16_t readSensor()
     {
       pressuremittel = pressuremittel + faktor * ( pressure - pressuremittel);
     }
-   sei();
+   //sei();
    return pressuremittel ;
 }
 
@@ -271,9 +271,9 @@ void setup()
     lcd_puts("ms5611 not found: ");
   }
    
-   
+   ms5611.reset(0);
    ms5611.setOversampling(OSR_STANDARD);
-   _delay_ms(20);
+   _delay_ms(200);
   
 }
 
@@ -287,7 +287,6 @@ void recvData()
     radio.read(&data, sizeof(Signal));
     lastRecvTime = millis();                                    // Receive the data | Data alınıyor
 
-    //ackData[0] = impulscounter;
    // ********************
     // ACK Payload ********
     radio.writeAckPayload(1, &ackData, sizeof(ackData));
@@ -296,7 +295,7 @@ void recvData()
    if(radiocounter % 4 == 0)
       {
          //OSZIALO;
-       //   float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
+         float pressurenew = readSensor(); // temperaturmittel, pressuremittel*10
          //OSZIAHI;
          temperature_int = uint8_t(temperaturmittel *5); // 3 Stellen <255
          ackData[0] = temperature_int;
@@ -350,7 +349,7 @@ void loop()
 
     //batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
 
-    ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+    //ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
 
     
 
@@ -394,8 +393,7 @@ void loop()
   }
   if( radiostatus & (1<<RADIOSTARTED))
   {
-    //ackData[0] = data.yaw;
-    //ackData[1] = data.pitch;
+   
    
     recvData();
     unsigned long now = millis();
@@ -418,7 +416,7 @@ void loop()
   ch_width_4 = map(data.throttle, 0, 255, 1000, 2000);  // THROTTLE
 
   // ON/OFF
-  ch_width_5 = map(data.aux1, 0, 1, 1000, 2000); 
+  //ch_width_5 = map(data.aux1, 0, 1, 1000, 2000); 
   //ch_width_6 = map(data.aux2, 0, 1, 1000, 2000); 
   //ch_width_6 = map((impulscounter & 0xFF ), 0, 255, 1000, 2000);
 
@@ -426,7 +424,7 @@ void loop()
   ch2.writeMicroseconds(ch_width_2);
   ch3.writeMicroseconds(ch_width_3);
   ch4.writeMicroseconds(ch_width_4);
-  ch5.writeMicroseconds(ch_width_5);
+  //ch5.writeMicroseconds(ch_width_5);
   //ch6.writeMicroseconds(ch_width_6); 
 }
 
