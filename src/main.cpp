@@ -349,7 +349,7 @@ void loop()
 
     //batt = constrain(batt, 600, 1000); // verhindert ausgabe bei batt < 600
 
-    //ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
+    ackData[3] = map(batt,600,1000,0,255); // BATT 8.4V: 240   6.4V: 94   6.0: 65
 
     
 
